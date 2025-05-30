@@ -4,7 +4,7 @@ let vendedoresTareas = {};
 let tiposTareas = new Set();
 
 function loadVendedoresYTareas() {
-    fetch("https://b2bc-190-105-215-11.ngrok-free.app/get-vendedores-y-tareas")
+    fetch("http://localhost:8080/get-vendedores-y-tareas")
         .then(response => response.json())
         .then(data => {
             console.log("Datos recibidos del servidor:", data);
