@@ -4,7 +4,7 @@ let vendedoresTareas = {};
 let tiposTareas = new Set();
 
 function loadVendedoresYTareas() {
-    fetch("http://localhost:8080/get-vendedores-y-tareas")
+    fetch("https://tareascreaciondevalor.onrender.com/get-vendedores-y-tareas")
         .then(response => response.json())
         .then(data => {
             console.log("Datos recibidos del servidor:", data);
