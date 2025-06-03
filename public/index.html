@@ -1,25 +1,41 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Listado de Tareas</title>
-    <link rel="stylesheet" href="styles.css">
-    <script defer src="script.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Listado de Tareas</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="script.js"></script>
 </head>
 <body>
-    <h1>Listado de Tareas</h1>
+  <h1>Listado de Tareas</h1>
 
-    <label for="vendedores">Seleccionar Vendedor:</label>
-    <select id="vendedores"></select>
+  <label for="vendedores">Seleccionar Vendedor:</label>
+  <select id="vendedores" name="vendedores">
+    <!-- Opciones cargadas dinámicamente -->
+  </select>
 
-    <label for="tiposTareas">Seleccionar Tipo de Tarea:</label>
-    <select id="tiposTareas"></select>
+  <label for="tiposTareas">Seleccionar Tipo de Tarea:</label>
+  <select id="tiposTareas" name="tiposTareas">
+    <!-- Opciones cargadas dinámicamente -->
+  </select>
 
-    <label for="buscadorPdv">Buscar PDV:</label>
-    <input type="text" id="buscadorPdv" placeholder="Escribe el nombre del PDV..." oninput="filtrarPdvs()">
+  <label for="buscadorPdv">Buscar PDV:</label>
+  <input
+    type="text"
+    id="buscadorPdv"
+    name="buscadorPdv"
+    placeholder="Escribe el nombre del PDV..."
+    oninput="filtrarPdvs()"
+    autocomplete="off"
+  />
 
-    <h2>PDVs con Tareas</h2>
-    <ul id="listadoPdv"></ul>
+
+  <div id="contenedorTotales"></div>
+
+  <h2>PDVs con Tareas</h2>
+  <ul id="listadoPdv">
+    <!-- PDVs con tareas se cargan aquí -->
+  </ul>
 </body>
 </html>

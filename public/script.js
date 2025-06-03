@@ -1,111 +1,226 @@
-document.addEventListener("DOMContentLoaded", loadVendedoresYTareas);
+document.addEventListener("DOMContentLoaded", () => {
+  inicializarApp();
+});
 
 let vendedoresTareas = {};
 let tiposTareas = new Set();
 
-function loadVendedoresYTareas() {
-    fetch("https://tareascreaciondevalor.onrender.com/get-vendedores-y-tareas")
-        .then(response => response.json())
-        .then(data => {
-            console.log("Datos recibidos del servidor:", data);
-            vendedoresTareas = data.vendedoresTareas || {};
-            tiposTareas = new Set(data.tiposTareas || []);
-            cargarVendedores();
-            cargarTiposDeTarea();
-        })
-        .catch(error => console.error("Error al cargar los vendedores y tareas:", error));
+async function inicializarApp() {
+  try {
+    await cargarDatos();
+    poblarSelectores();
+    agregarEventListeners();
+  } catch (error) {
+    console.error("Error al cargar los datos:", error);
+  }
 }
 
-function cargarVendedores() {
-    const selectVendedores = document.getElementById("vendedores");
-    selectVendedores.innerHTML = "<option value=''>Selecciona un vendedor</option>";
+async function cargarDatos() {
+  const res = await fetch("http://localhost:8080/get-vendedores-y-tareas");
+  if (!res.ok) throw new Error("Error en la respuesta del servidor");
+  const data = await res.json();
 
-    Object.keys(vendedoresTareas).forEach(vendedor => {
-        const option = document.createElement("option");
-        option.value = vendedor;
-        option.textContent = vendedor;
-        selectVendedores.appendChild(option);
-    });
+  vendedoresTareas = data.vendedoresTareas || {};
+  tiposTareas = new Set(data.tiposTareas || []);
 
-    selectVendedores.addEventListener('change', mostrarPdvPorVendedor);
+  console.log("Datos cargados:", { vendedoresTareas, tiposTareas });
 }
 
-function cargarTiposDeTarea() {
-    const selectTipos = document.getElementById("tiposTareas");
-    selectTipos.innerHTML = "<option value=''>Selecciona un tipo de tarea</option>";
-
-    tiposTareas.forEach(tipo => {
-        const option = document.createElement("option");
-        option.value = tipo;
-        option.textContent = tipo;
-        selectTipos.appendChild(option);
-    });
-
-    selectTipos.addEventListener('change', mostrarPdvPorVendedor);
+function poblarSelectores() {
+  llenarSelect("vendedores", Object.keys(vendedoresTareas), "Selecciona un vendedor");
+  llenarSelect("tiposTareas", Array.from(tiposTareas), "Selecciona un tipo de tarea");
 }
 
-function mostrarPdvPorVendedor() {
-    const vendedorSeleccionado = document.getElementById("vendedores").value;
-    const tipoTareaSeleccionado = document.getElementById("tiposTareas").value;
-    const listadoPdv = document.getElementById("listadoPdv");
-    listadoPdv.innerHTML = "";
-
-    if (!vendedorSeleccionado || !vendedoresTareas[vendedorSeleccionado]) {
-        listadoPdv.innerHTML = "<li>No hay PDVs disponibles</li>";
-        return;
-    }
-
-    let pdvs = Object.entries(vendedoresTareas[vendedorSeleccionado]);
-
-    pdvs.sort((a, b) => b[1].length - a[1].length);
-
-    pdvs.forEach(([pdv, tareas]) => {
-        let tareasFiltradas = tareas;
-        if (tipoTareaSeleccionado) {
-            tareasFiltradas = tareas.filter(tarea => tarea.tipo === tipoTareaSeleccionado);
-        }
-
-        if (tareasFiltradas.length > 0) {
-            const listItem = document.createElement("li");
-            listItem.classList.add("pdv-item"); // Agregamos la clase para el filtrado
-
-            const visitadoClass = tareas[0].visitado === "VISITADO" ? "visitado" : "no-visitado";
-            const canjeoClass = tareas[0].canjeo === "SI" ? "canjeo-si" : "canjeo-no";
-            const desafioClass = tareas[0].desafio === "COMPLETO" ? "desafio-si" : "desafio-no";
-
-            listItem.innerHTML = ` 
-                <strong>${pdv}</strong> - <span class="puntos">Tareas: ${tareasFiltradas.length}</span>
-                <br> Visitado: <span class="${visitadoClass}">${tareas[0].visitado}</span>
-                | Canjeó Puntos: <span class="${canjeoClass}">${tareas[0].canjeo}</span>
-                | Puntos: <span class="puntos">${tareas[0].puntos}</span>
-                | Desafío: <span class="${desafioClass}">${tareas[0].desafio}</span>`;
-
-            const contenedorTareas = document.createElement("ul");
-            contenedorTareas.style.display = "none";
-
-            tareasFiltradas.forEach(tarea => {
-                const tareaItem = document.createElement("li");
-                tareaItem.textContent = tarea.descripcion;
-                contenedorTareas.appendChild(tareaItem);
-            });
-
-            listItem.appendChild(contenedorTareas);
-            listItem.addEventListener("click", () => {
-                contenedorTareas.style.display = contenedorTareas.style.display === "none" ? "block" : "none";
-            });
-
-            listadoPdv.appendChild(listItem);
-        }
-    });
+function llenarSelect(id, opciones, textoDefault) {
+  const select = document.getElementById(id);
+  select.innerHTML = `<option value="">${textoDefault}</option>`;
+  opciones.forEach(opt => {
+    const optionElem = document.createElement("option");
+    optionElem.value = opt;
+    optionElem.textContent = opt;
+    select.appendChild(optionElem);
+  });
 }
 
-// Función para filtrar PDVs en tiempo real
+function agregarEventListeners() {
+  ["vendedores", "tiposTareas"].forEach(id =>
+    document.getElementById(id).addEventListener("change", mostrarPdvsFiltrados)
+  );
+  document.getElementById("buscadorPdv").addEventListener("input", filtrarPdvs);
+}
+
+function mostrarPdvsFiltrados() {
+  const vendedor = document.getElementById("vendedores").value;
+  const tipoTarea = document.getElementById("tiposTareas").value;
+  const listadoPdv = document.getElementById("listadoPdv");
+  const contenedorTotales = document.getElementById("contenedorTotales");
+  
+
+  listadoPdv.innerHTML = "";
+  contenedorTotales.innerHTML = "";
+
+  if (!vendedor || !vendedoresTareas[vendedor]) {
+    listadoPdv.innerHTML = "<li>No hay PDVs disponibles</li>";
+    return;
+  }
+
+  const fechaHoyISO = obtenerFechaHoyISO();
+
+  // Ordenar PDVs según cantidad de tareas (descendente)
+  const pdvs = Object.entries(vendedoresTareas[vendedor]).sort(
+    (a, b) => b[1].length - a[1].length
+  );
+
+  let totalTareas = 0, totalCompletadas = 0, totalValidadas = 0;
+
+  pdvs.forEach(([pdv, tareas]) => {
+    // Filtrar por tipo si aplica
+    const tareasFiltradas = tareas.filter(t => !tipoTarea || t.tipo === tipoTarea);
+
+    totalTareas += tareasFiltradas.length;
+    totalCompletadas += tareasFiltradas.filter(estaCompletada).length;
+    totalValidadas += tareasFiltradas.filter(estaValidada).length;
+
+    // Solo tareas del día actual
+    const tareasHoy = tareasFiltradas.filter(t => formatearFecha(t.fecha) === fechaHoyISO);
+
+    if (tareasHoy.length === 0) return;
+
+    const completadasHoy = tareasHoy.filter(estaCompletada).length;
+    const validadasHoy = tareasHoy.filter(estaValidada).length;
+
+    listadoPdv.appendChild(crearItemPdv(pdv, tareas, tareasHoy, completadasHoy, validadasHoy));
+  });
+
+  mostrarResumen(contenedorTotales, totalTareas, totalCompletadas, totalValidadas);
+}
+
+function obtenerFechaHoyISO() {
+  const hoy = new Date();
+  hoy.setDate(hoy.getDate() - 1); // Ajuste para restar un día
+  return hoy.toISOString().slice(0, 10);
+}
+
+function formatearFecha(fechaStr) {
+  if (!fechaStr) return null;
+  const [dia, mes, anio] = fechaStr.split("/");
+  if (!dia || !mes || !anio) return null;
+  return `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+}
+
+function estaCompletada(tarea) {
+  const val = tarea.tareaCompletada;
+  return val === 1 || val === true || (typeof val === "string" && val.toLowerCase() === "sí");
+}
+
+function estaValidada(tarea) {
+  const val = tarea.tareaValidada;
+  return val === 1 || val === true || (typeof val === "string" && val.toLowerCase() === "sí");
+}
+
+function crearItemPdv(pdv, tareas, tareasHoy, completadas, validadas) {
+  const li = document.createElement("li");
+  li.classList.add("pdv-item");
+
+  const visitado = typeof tareas[0]?.visitado === "string" && tareas[0].visitado.toUpperCase() === "VISITADO"
+    ? "visitado" : "no-visitado";
+
+  const canjeoClass = typeof tareas[0]?.canjeo === "string" && tareas[0].canjeo.toUpperCase() === "SI"
+    ? "canjeo-si" : "canjeo-no";
+
+  li.innerHTML = `
+    <strong>${pdv}</strong> - <span class="puntos">Tareas: ${tareasHoy.length}</span><br>
+    Visitado: <span class="${visitado}">${tareas[0]?.visitado || "No info"}</span> |
+    Canjeó Puntos: <span class="${canjeoClass}">${tareas[0]?.canjeo || "No info"}</span> |
+    Puntos: <span class="puntos">${tareas[0]?.puntos || 0}</span><br>
+  `;
+
+  const ulTareas = document.createElement("ul");
+  ulTareas.style.display = "none";
+
+  tareasHoy.forEach(t => {
+    const liTarea = document.createElement("li");
+    liTarea.textContent = t.descripcion || t.tarea || "Sin descripción";
+    ulTareas.appendChild(liTarea);
+  });
+
+  li.appendChild(ulTareas);
+
+  li.addEventListener("click", () => {
+    ulTareas.style.display = ulTareas.style.display === "none" ? "block" : "none";
+  });
+
+  return li;
+}
+
+function mostrarResumen(contenedor, total, completadas, validadas) {
+  const porcentajeComp = total ? ((completadas / total) * 100).toFixed(1) : 0;
+  const porcentajeVal = total ? ((validadas / total) * 100).toFixed(1) : 0;
+
+  contenedor.innerHTML = `
+    <h3>Resumen de tareas (todas las fechas)</h3>
+    <p><strong>Total de tareas:</strong> ${total}</p>
+    <p><strong>Tareas completadas:</strong> ${completadas} (${porcentajeComp}%)</p>
+    <p><strong>Tareas validadas:</strong> ${validadas} (${porcentajeVal}%)</p>
+  `;
+}
+
 function filtrarPdvs() {
-    const input = document.getElementById("buscadorPdv").value.toLowerCase();
-    const listaPdvs = document.querySelectorAll("#listadoPdv .pdv-item");
+  const filtro = document.getElementById("buscadorPdv").value.toLowerCase();
+  document.querySelectorAll("#listadoPdv li").forEach(li => {
+    li.style.display = li.textContent.toLowerCase().includes(filtro) ? "" : "none";
+  });
+}
 
-    listaPdvs.forEach(item => {
-        const nombrePdv = item.textContent.toLowerCase();
-        item.style.display = nombrePdv.includes(input) ? "block" : "none";
+function mostrarRankingTareas() {
+  const vendedor = document.getElementById("vendedores").value;
+  const tipoTarea = document.getElementById("tiposTareas").value;
+  const contenedorRanking = document.getElementById("rankingTareas");
+
+  contenedorRanking.innerHTML = "";
+
+  if (!vendedor || !vendedoresTareas[vendedor]) {
+    contenedorRanking.innerHTML = "<p>Selecciona un vendedor válido</p>";
+    return;
+  }
+
+  const estadisticas = {};
+
+  Object.entries(vendedoresTareas[vendedor]).forEach(([_, tareas]) => {
+    const tareasFiltradas = tareas.filter(t => !tipoTarea || t.tipo === tipoTarea);
+
+    tareasFiltradas.forEach(t => {
+      const desc = t.descripcion || t.tarea || "Sin descripción";
+      if (!estadisticas[desc]) estadisticas[desc] = { total: 0, completadas: 0, validadas: 0 };
+
+      estadisticas[desc].total++;
+      if (estaCompletada(t)) estadisticas[desc].completadas++;
+      if (estaValidada(t)) estadisticas[desc].validadas++;
     });
+  });
+
+  const ranking = Object.entries(estadisticas)
+    .map(([descripcion, datos]) => ({
+      descripcion,
+      ...datos,
+      diferencia: datos.completadas - datos.validadas
+    }))
+    .sort((a, b) => b.diferencia - a.diferencia);
+
+  if (!ranking.length) {
+    contenedorRanking.innerHTML = "<p>No hay tareas para mostrar</p>";
+    return;
+  }
+
+  const ul = document.createElement("ul");
+  ranking.forEach(t => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${t.descripcion}</strong>: Completadas ${t.completadas}, Validadas ${t.validadas}, Diferencia: ${t.diferencia}
+    `;
+    ul.appendChild(li);
+  });
+
+  contenedorRanking.innerHTML = "<h3>Tareas más completadas y menos validadas</h3>";
+  contenedorRanking.appendChild(ul);
 }
