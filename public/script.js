@@ -16,7 +16,7 @@ async function inicializarApp() {
 }
 
 async function cargarDatos() {
-  const res = await fetch("http://localhost:8080/get-vendedores-y-tareas");
+  const res = await fetch("https://tareascreaciondevalor.onrender.com/get-vendedores-y-tareas");
   if (!res.ok) throw new Error("Error en la respuesta del servidor");
   const data = await res.json();
 
