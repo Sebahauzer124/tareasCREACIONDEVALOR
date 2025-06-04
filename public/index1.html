@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ranking de Tareas EXECUTION</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+
+  <div class="container py-4">
+    <h2 class="mb-4 text-center">Ranking de Tareas EXECUTION</h2>
+
+    <div class="mb-3">
+      <select id="vendedores" class="form-select" aria-label="Selecciona un vendedor">
+        <option value="">Selecciona un vendedor</option>
+      </select>
+    </div>
+
+    <div class="d-grid mb-4">
+      <button id="volverBtn" class="btn btn-primary btn-lg w-100">Volver al inicio</button>
+    </div>
+
+    <div id="rankingTareas"></div>
+  </div>
+
+  <!-- Bootstrap JS y dependencias (Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      inicializarApp();
+      document.getElementById("volverBtn").addEventListener("click", () => {
+        window.location.href = "index.html";
+      });
+    });
+
+    let vendedoresTareas = {};
+
+    async function inicializarApp() {
+      try {
+        await cargarDatos();
+        poblarSelectores();
+        agregarEventListeners();
+      } catch (error) {
+        console.error("Error al cargar los datos:", error);
+        mostrarMensajeRanking("Error al cargar los datos.");
+      }
+    }
+
+    async function cargarDatos() {
+      const res = await fetch("https://tareascreaciondevalor.onrender.com/get-vendedores-y-tareas");
+      if (!res.ok) throw new Error("Error en la respuesta del servidor");
+      const data = await res.json();
+
+      vendedoresTareas = data.vendedoresTareas || {};
+    }
+
+    function poblarSelectores() {
+      const selectVendedores = document.getElementById("vendedores");
+      selectVendedores.innerHTML = '<option value="">Selecciona un vendedor</option>';
+      Object.keys(vendedoresTareas).forEach(vendedor => {
+        const option = document.createElement("option");
+        option.value = vendedor;
+        option.textContent = vendedor;
+        selectVendedores.appendChild(option);
+      });
+    }
+
+    function agregarEventListeners() {
+      document.getElementById("vendedores").addEventListener("change", mostrarRankingTareas);
+    }
+
+    function estaCompletada(tarea) {
+      const val = tarea.tareaCompletada;
+      return val === 1 || val === true || (typeof val === "string" && val.toLowerCase() === "sí");
+    }
+
+    function estaValidada(tarea) {
+      const val = tarea.tareaValidada;
+      return val === 1 || val === true || (typeof val === "string" && val.toLowerCase() === "sí");
+    }
+
+    function mostrarRankingTareas() {
+      const vendedor = document.getElementById("vendedores").value;
+      const contenedorRanking = document.getElementById("rankingTareas");
+      contenedorRanking.innerHTML = "";
+
+      if (!vendedor || !vendedoresTareas[vendedor]) {
+        mostrarMensajeRanking("Selecciona un vendedor válido");
+        return;
+      }
+
+      const estadisticas = {};
+
+      // Solo tareas de tipo "EXECUTION"
+      Object.entries(vendedoresTareas[vendedor]).forEach(([_, tareas]) => {
+        const tareasFiltradas = tareas.filter(t => t.tipo === "EXECUTION");
+
+        tareasFiltradas.forEach(t => {
+          const desc = t.descripcion || t.tarea || "Sin descripción";
+          if (!estadisticas[desc]) estadisticas[desc] = { total: 0, completadas: 0, validadas: 0 };
+
+          estadisticas[desc].total++;
+          if (estaCompletada(t)) estadisticas[desc].completadas++;
+          if (estaValidada(t)) estadisticas[desc].validadas++;
+        });
+      });
+
+      const ranking = Object.entries(estadisticas)
+        .map(([descripcion, datos]) => ({
+          descripcion,
+          ...datos,
+          diferencia: datos.completadas - datos.validadas
+        }))
+        .sort((a, b) => b.diferencia - a.diferencia);
+
+      if (!ranking.length) {
+        mostrarMensajeRanking("No hay tareas de tipo EXECUTION para mostrar");
+        return;
+      }
+
+      const ul = document.createElement("ul");
+      ul.classList.add("list-group");
+
+      ranking.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "list-group-item d-flex justify-content-between align-items-center flex-wrap";
+        li.innerHTML = `
+          <span class="me-2"><strong>${t.descripcion}</strong></span>
+          <span>
+            Completadas: <span class="badge bg-success">${t.completadas}</span> &nbsp;
+            Validadas: <span class="badge bg-primary">${t.validadas}</span> &nbsp;
+            Diferencia: <span class="badge bg-warning text-dark">${t.diferencia}</span>
+          </span>
+        `;
+        ul.appendChild(li);
+      });
+
+      contenedorRanking.innerHTML = "<h4 class='mb-3'>Tareas EXECUTION: Más completadas y menos validadas</h4>";
+      contenedorRanking.appendChild(ul);
+    }
+
+    function mostrarMensajeRanking(mensaje) {
+      const contenedorRanking = document.getElementById("rankingTareas");
+      contenedorRanking.innerHTML = `<p class="text-center text-muted">${mensaje}</p>`;
+    }
+  </script>
+
+</body>
+</html>
