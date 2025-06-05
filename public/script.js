@@ -160,7 +160,7 @@ function mostrarResumen(contenedor, total, completadas, validadas) {
   contenedor.innerHTML = `
     <h3>Resumen de tareas (todas las fechas)</h3>
     <p><strong>Total de tareas:</strong> ${total}</p>
-    <p><strong>Tareas completadas:</strong> ${completadas} (${porcentajeComp}%)</p>
+    <p><strong>Tareas completadas(APLICA SOLO PARA EJECUCION):</strong> ${completadas} (${porcentajeComp}%)</p>
     <p><strong>Tareas validadas:</strong> ${validadas} (${porcentajeVal}%)</p>
   `;
 }
